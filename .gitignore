@@ -1,0 +1,8 @@
+.env
+/vendor/
+composer.phar
+infection.json
+infection.log
+phpunit.xml
+psalm.xml
+ruleset.xml
