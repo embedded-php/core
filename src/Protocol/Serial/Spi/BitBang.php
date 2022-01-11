@@ -1,11 +1,10 @@
 <?php
 declare(strict_types = 1);
 
-namespace EmbeddedPhp\Core\Protocol\Serial;
+namespace EmbeddedPhp\Core\Protocol\Serial\Spi;
 
 use EmbeddedPhp\Core\Gpio\GpioInterface;
 use EmbeddedPhp\Core\Protocol\ProtocolInterface;
-use RuntimeException;
 
 /**
  * Wraps a SPI bus to provide sendData and sendCommand methods.
@@ -30,7 +29,12 @@ class BitBang implements ProtocolInterface {
 
     foreach ($bytes as $byte) {
       for ($i = 0; $i < 8; $i++) {
-        $this->gpio->setValue($this->pinSDA, ($byte & 0x80) !== 0);
+        if ($byte & 0x80) {
+          $this->gpio->setHigh($this->pinSDA);
+        } else {
+          $this->gpio->setLow($this->pinSDA);
+        }
+
         $this->gpio->setHigh($this->pinSCLK);
         $byte <<= 1;
         $this->gpio->setLow($this->pinSCLK);
@@ -56,7 +60,7 @@ class BitBang implements ProtocolInterface {
    * @param int           $pinRST           The GPIO pin to connect reset (RES / RST) to.
    * @param int           $transferSize     Max bytes to transfer in one go.
    * @param int           $resetHoldTime    The number of microseconds to hold reset active.
-   * @param int           $resetReleaseTime The number of microseconds to delay afer reset.
+   * @param int           $resetReleaseTime The number of microseconds to delay after reset.
    */
   public function __construct(
     GpioInterface $gpio,

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types = 1);
 
-namespace EmbeddedPhp\Core\Protocol\Serial;
+namespace EmbeddedPhp\Core\Protocol\Serial\Spi;
 
 use EmbeddedPhp\Core\Gpio\GpioInterface;
 use RuntimeException;
@@ -12,9 +12,14 @@ use Webmozart\Assert\Assert;
  * Wraps a SPI bus to provide sendData and sendCommand methods.
  *
  * @link https://github.com/rm-hull/luma.core/blob/master/luma/core/interface/serial.py
- * @link https://github.com/flavioheleno/phpspi
+ * @link https://github.com/embedded-php/ext-spi
  */
 final class PhpSpiExt extends BitBang {
+  /**
+   * SPI bus instance.
+   *
+   * @var \SPI\Bus
+   */
   protected Bus $bus;
 
   protected function sendBytes(int ...$bytes): void {
@@ -42,7 +47,7 @@ final class PhpSpiExt extends BitBang {
    * @param int           $pinRST           The GPIO pin to connect reset (RES / RST) to (defaults to 25 BCM).
    * @param int           $transferSize     Max bytes to transfer in one go.
    * @param int           $resetHoldTime    The number of microseconds to hold reset active.
-   * @param int           $resetReleaseTime The number of microseconds to delay afer reset.
+   * @param int           $resetReleaseTime The number of microseconds to delay after reset.
    */
   public function __construct(
     GpioInterface $gpio,
@@ -59,7 +64,12 @@ final class PhpSpiExt extends BitBang {
     int $resetReleaseTime = 1000000
   ) {
     if (! extension_loaded('phpspi')) {
-      throw new RuntimeException('The "phpspi" extension must be loaded to use EmbeddedPhp\Core\Protocol\PhpSpiExt');
+      throw new RuntimeException(
+        sprintf(
+          'The "phpspi" extension must be loaded to use %s',
+          __CLASS__
+        )
+      );
     }
 
     $hz = [
