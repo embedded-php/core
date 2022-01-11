@@ -3,6 +3,8 @@
 
 This library contains the core functionality, such as GPIO manipulation and SPI/I2C protocol handling, used by other [Embedded PHP](https://github.com/embedded-php) libraries and projects.
 
+It is very unlikely that you want to use this library as is and likely that you're looking for the [Sensors Library](https://github.com/embedded-php/sensors) or the [Display Library](https://github.com/embedded-php/display) instead.
+
 ## Acknowledgements
 
 This is a partial port of the *superb* [luma.oled](https://github.com/rm-hull/luma.oled) Python library.

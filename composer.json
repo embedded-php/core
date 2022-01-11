@@ -21,20 +21,34 @@
     }
   },
   "config": {
-    "sort-packages": true
+    "optimize-autoloader": true,
+    "sort-packages": true,
+    "preferred-install": "dist",
+    "allow-plugins": {
+      "infection/extension-installer": true,
+      "composer/package-versions-deprecated": true
+    }
   },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "funding": [
+    {
+      "type": "patreon",
+      "url": "https://www.patreon.com/flavioheleno"
+    }
+  ],
   "require": {
     "php": ">=8.0"
   },
   "require-dev": {
-    "infection/infection": "^0.21.5 || ^0.23.0 || ^0.24.0 || ^0.25.0",
-    "php-parallel-lint/php-parallel-lint": "^1.2",
-    "phpstan/phpstan": "^0.12.58",
+    "infection/infection": "^0.25.0",
+    "php-parallel-lint/php-parallel-lint": "^1.3",
+    "phpstan/phpstan": "^0.12.90",
     "phpunit/phpunit": "^9.5",
-    "psy/psysh": "^0.10.5",
+    "psy/psysh": "^0.10.8",
     "roave/security-advisories": "dev-master",
-    "squizlabs/php_codesniffer": "^3.5",
-    "vimeo/psalm": "^4.3"
+    "squizlabs/php_codesniffer": "^3.6",
+    "vimeo/psalm": "^4.8"
   },
   "scripts": {
     "console": "vendor/bin/psysh",
@@ -64,8 +78,10 @@
     "test": "Runs all tests"
   },
   "suggest": {
-    "ext-phpgpio": "Needed for using EmbeddedPhp\\Core\\Gpio\\PhpGpioExt",
-    "ext-phpspi": "Needed for using EmbeddedPhp\\Core\\Protocol\\Serial\\PhpSpiExt",
-    "piphp/gpio": "Needed for using EmbeddedPhp\\Core\\Gpio\\PiPhpGpio"
+    "ext-gpio": "Required for using EmbeddedPhp\\Core\\Gpio\\PhpGpioExt",
+    "ext-i2c": "Required for using EmbeddedPhp\\Core\\Protocol\\Serial\\I2c\\PhpI2cExt",
+    "ext-spi": "Required for using EmbeddedPhp\\Core\\Protocol\\Serial\\Spi\\PhpSpiExt",
+    "ext-uart": "Required for using EmbeddedPhp\\Core\\Protocol\\Serial\\Uart\\PhpUartExt",
+    "piphp/gpio": "Required for using EmbeddedPhp\\Core\\Gpio\\PiPhpGpio"
   }
 }
