@@ -3,18 +3,16 @@ declare(strict_types = 1);
 
 namespace EmbeddedPhp\Core\Gpio;
 
+use GPIO\Chip;
+use GPIO\Pin;
+use Pastry\Pinout;
+use RuntimeException;
 use const GPIO\REQUEST_DIRECTION_INPUT;
 use const GPIO\REQUEST_DIRECTION_OUTPUT;
 use const GPIO\REQUEST_FLAG_NONE;
 
-use GPIO\Chip;
-use GPIO\Line;
-use EmbeddedPhp\Core\Gpio\GpioInterface;
-use Pastry\Pinout;
-use RuntimeException;
-
 /**
- * @link https://github.com/flavioheleno/phpgpio
+ * @link https://github.com/embedded-php/ext-gpio
  */
 final class PhpGpioExt implements GpioInterface {
   /**
@@ -41,11 +39,20 @@ final class PhpGpioExt implements GpioInterface {
    * @var \GPIO\Chip
    */
   private Chip $chip;
+  /**
+   * One of self::PIN_* constants.
+   *
+   * @var int
+   */
   private int $pinType;
   /**
-   * @var \GPIO\Line[]
+   * @var \GPIO\Pin[]
    */
-  private array $lines = [];
+  private array $inputPins = [];
+    /**
+   * @var \GPIO\Pin[]
+   */
+  private array $outputPins = [];
 
   private function pinMap(int $pin): int {
     if ($this->pinType === self::PIN_LOG) {
@@ -58,57 +65,22 @@ final class PhpGpioExt implements GpioInterface {
 
     static $map = [];
     if (isset($map[$pin]) === false) {
-      switch ($this->pinType) {
-        case self::PIN_GPIO:
-          $gpio = Pinout::fromGpio($pin);
-          break;
-        case self::PIN_BCM:
-          $gpio = Pinout::fromBcm($pin);
-          break;
-        case self::PIN_WPI:
-          $gpio = Pinout::fromWiringPi($pin);
-          break;
-        default:
-          throw new RuntimeException(
-            sprintf(
-              'Invalid pin type: "%d"',
-              $this->pinType
-            )
-          );
-      }
+      $gpio = match ($this->pinType) {
+        self::PIN_GPIO => Pinout::fromGpio($pin),
+        self::PIN_BCM => Pinout::fromBcm($pin),
+        self::PIN_WPI => Pinout::fromWiringPi($pin),
+        default => throw new RuntimeException(
+          sprintf(
+            'Invalid pin type: "%d"',
+            $this->pinType
+          )
+        ),
+      };
 
       $map[$pin] = $gpio->getLogical();
     }
 
     return $map[$pin];
-  }
-
-  private function getValue(int $pin): int {
-    $pinNumber = $this->pinMap($pin);
-    if (isset($this->lines[$pinNumber]) === false) {
-      throw new RuntimeException(
-        sprintf(
-          'Pin %d is not in input mode',
-          $pinNumber
-        )
-      );
-    }
-
-    return $this->lines[$pinNumber]->getValue();
-  }
-
-  private function setValue(int $pin, int $value): void {
-    $pinNumber = $this->pinMap($pin);
-    if (isset($this->lines[$pinNumber]) === false) {
-      throw new RuntimeException(
-        sprintf(
-          'Pin %d is not in output mode',
-          $pinNumber
-        )
-      );
-    }
-
-    $this->lines[$pinNumber]->setValue($value);
   }
 
   public function __construct(string $device, $pinType = self::PIN_PHYS) {
@@ -121,33 +93,31 @@ final class PhpGpioExt implements GpioInterface {
       );
     }
 
-    if (Chip::isDevice($device) === false) {
-      throw new RuntimeException(
-        sprintf(
-          '"%s" is not a device',
-          $device
-        )
-      );
-    }
-
     $this->chip = new Chip($device);
     $this->pinType = $pinType;
   }
 
   public function __destruct() {
-    foreach ($this->lines as $line) {
-      $line->setConfig(REQUEST_DIRECTION_INPUT, 0);
-      unset($line);
+    foreach ($this->inputPins as $pin) {
+      unset($pin);
+    }
+
+    foreach ($this->outputPins as $pin) {
+      unset($pin);
     }
   }
 
   public function setInputMode(int $pin): void {
     $pinNumber = $this->pinMap($pin);
-    if (isset($this->lines[$pinNumber]) === false) {
-      $this->lines[$pinNumber] = $this->chip->getLine($pinNumber);
+    if (isset($this->outputPins[$pinNumber]) === true) {
+      unset($this->outputPins[$pinNumber]);
     }
 
-    if ($this->lines[$pinNumber]->isUsed()) {
+    if (isset($this->inputPins[$pinNumber]) === false) {
+      $this->inputPins[$pinNumber] = $this->chip->getPin($pinNumber);
+    }
+
+    if ($this->inputPins[$pinNumber]->isUsed()) {
       throw new RuntimeException(
         sprintf(
           'Pin %d is currently being used by another process',
@@ -156,20 +126,20 @@ final class PhpGpioExt implements GpioInterface {
       );
     }
 
-    $this->lines[$pinNumber]->request(
-      'php-iot',
-      REQUEST_DIRECTION_INPUT,
-      REQUEST_FLAG_NONE
-    );
+    $this->inputPins[$pinNumber]->asInput('embedded-php');
   }
 
   public function setOutputMode(int $pin): void {
     $pinNumber = $this->pinMap($pin);
-    if (isset($this->lines[$pinNumber]) === false) {
-      $this->lines[$pinNumber] = $this->chip->getLine($pinNumber);
+    if (isset($this->inputPins[$pinNumber]) === true) {
+      unset($this->inputPins[$pinNumber]);
     }
 
-    if ($this->lines[$pinNumber]->isUsed()) {
+    if (isset($this->outputPins[$pinNumber]) === false) {
+      $this->outputPins[$pinNumber] = $this->chip->getPin($pinNumber);
+    }
+
+    if ($this->outputPins[$pinNumber]->isUsed()) {
       throw new RuntimeException(
         sprintf(
           'Pin %d is currently being used by another process',
@@ -178,34 +148,149 @@ final class PhpGpioExt implements GpioInterface {
       );
     }
 
-    $this->lines[$pinNumber]->request(
-      'php-iot',
-      REQUEST_DIRECTION_OUTPUT,
-      REQUEST_FLAG_NONE,
-      Line::VALUE_LOW
-    );
+    $this->outputPins[$pinNumber]->asOutput('embedded-php');
   }
 
   public function isHigh(int $pin): bool {
-    return $this->getValue($pin) === Line::VALUE_HIGH;
+        $pinNumber = $this->pinMap($pin);
+    if (isset($this->inputPins[$pinNumber]) === false) {
+      throw new RuntimeException(
+        sprintf(
+          'Pin %d is not in input mode',
+          $pinNumber
+        )
+      );
+    }
+
+    return $this->inputPins[$pinNumber]->isHigh();
   }
 
   public function isLow(int $pin): bool {
-    return $this->getValue($pin) === Line::VALUE_LOW;
+        $pinNumber = $this->pinMap($pin);
+    if (isset($this->inputPins[$pinNumber]) === false) {
+      throw new RuntimeException(
+        sprintf(
+          'Pin %d is not in input mode',
+          $pinNumber
+        )
+      );
+    }
+
+    return $this->inputPins[$pinNumber]->isLow();
   }
 
   public function setHigh(int $pin): void {
-    $this->setValue($pin, Line::VALUE_HIGH);
+    $pinNumber = $this->pinMap($pin);
+    if (isset($this->outputPins[$pinNumber]) === false) {
+      throw new RuntimeException(
+        sprintf(
+          'Pin %d is not in output mode',
+          $pinNumber
+        )
+      );
+    }
+
+    $this->outputPins[$pinNumber]->setHigh();
   }
 
   public function setLow(int $pin): void {
-    $this->setValue($pin, Line::VALUE_LOW);
+    $pinNumber = $this->pinMap($pin);
+    if (isset($this->outputPins[$pinNumber]) === false) {
+      throw new RuntimeException(
+        sprintf(
+          'Pin %d is not in output mode',
+          $pinNumber
+        )
+      );
+    }
+
+    $this->outputPins[$pinNumber]->setLow();
   }
 
   public function release(int $pin): void {
     $pin = $this->pinMap($pin);
-    if (isset($this->lines[$pin])) {
-      unset($this->lines[$pin]);
+    if (isset($this->inputPins[$pin])) {
+      unset($this->inputPins[$pin]);
     }
+
+    if (isset($this->outputPins[$pin])) {
+      unset($this->outputPins[$pin]);
+    }
+  }
+
+  public function waitForFalling(int $pin, int $timeout): bool {
+    $pinNumber = $this->pinMap($pin);
+    if (isset($this->inputPins[$pinNumber]) === false) {
+      throw new RuntimeException(
+        sprintf(
+          'Pin %d is not in input mode',
+          $pinNumber
+        )
+      );
+    }
+
+    return $this->inputPins[$pinNumber]->waitForEdge($timeout, Pin::FALLING_EDGE) !== null;
+  }
+
+  public function waitForRising(int $pin, int $timeout): bool {
+    $pinNumber = $this->pinMap($pin);
+    if (isset($this->inputPins[$pinNumber]) === false) {
+      throw new RuntimeException(
+        sprintf(
+          'Pin %d is not in input mode',
+          $pinNumber
+        )
+      );
+    }
+
+    return $this->inputPins[$pinNumber]->waitForEdge($timeout, Pin::RISING_EDGE) !== null;
+  }
+
+  public function timeInHigh(int $pin, int $timeout): int {
+    $pinNumber = $this->pinMap($pin);
+    if (isset($this->inputPins[$pinNumber]) === false) {
+      throw new RuntimeException(
+        sprintf(
+          'Pin %d is not in input mode',
+          $pinNumber
+        )
+      );
+    }
+
+    $ev1 = $this->inputPins[$pinNumber]->waitForEdge($timeout, Pin::RISING_EDGE);
+    if ($ev1 === null) {
+      return 0;
+    }
+
+    $ev2 = $this->inputPins[$pinNumber]->waitForEdge($timeout, Pin::FALLING_EDGE);
+    if ($ev2 === null) {
+      return 0;
+    }
+
+    return $ev2->getTimestamp() - $ev1->getTimestamp();
+  }
+
+  public function timeInLow(int $pin, int $timeout): int {
+    $pinNumber = $this->pinMap($pin);
+    if (isset($this->inputPins[$pinNumber]) === false) {
+      throw new RuntimeException(
+        sprintf(
+          'Pin %d is not in input mode',
+          $pinNumber
+        )
+      );
+    }
+
+    $ev1 = $this->inputPins[$pinNumber]->waitForEdge($timeout, Pin::FALLING_EDGE);
+    if ($ev1 === null) {
+      return 0;
+    }
+
+    $ev2 = $this->inputPins[$pinNumber]->waitForEdge($timeout, Pin::RISING_EDGE);
+    if ($ev2 === null) {
+      return 0;
+    }
+
+    return $ev2->getTimestamp() - $ev1->getTimestamp();
   }
 }

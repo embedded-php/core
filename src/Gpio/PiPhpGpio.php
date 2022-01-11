@@ -3,7 +3,6 @@ declare(strict_types = 1);
 
 namespace EmbeddedPhp\Core\Gpio;
 
-use EmbeddedPhp\Core\Gpio\GpioInterface;
 use PiPHP\GPIO\GPIO;
 use PiPHP\GPIO\Pin\InputPin;
 use PiPHP\GPIO\Pin\OutputPin;
@@ -162,5 +161,83 @@ final class PiPhpGpio implements GpioInterface {
     if (isset($this->lines[$pin])) {
       unset($this->lines[$pin]);
     }
+  }
+
+  public function waitForFalling(int $pin, int $timeout): bool {
+    if (isset($this->pins[$pin]) === false) {
+      throw new RuntimeException(
+        sprintf(
+          'Pin %d is not in input mode',
+          $pin
+        )
+      );
+    }
+
+    if ($this->pins[$pin] instanceof OutputPin) {
+      throw new RuntimeException(
+        sprintf(
+          'Cannot wait for a falling edge event on an output pin',
+          $pin
+        )
+      );
+    }
+
+    while ($this->pins[$pin]->getValue() === PinInterface::VALUE_HIGH && --$timeout > 0) {
+      time_nanosleep(0, 1);
+    }
+
+    return $timeout !== 0;
+  }
+
+  public function waitForRising(int $pin, int $timeout): bool {
+    if (isset($this->pins[$pin]) === false) {
+      throw new RuntimeException(
+        sprintf(
+          'Pin %d is not in input mode',
+          $pin
+        )
+      );
+    }
+
+    if ($this->pins[$pin] instanceof OutputPin) {
+      throw new RuntimeException(
+        sprintf(
+          'Cannot wait for a raising edge event on an output pin',
+          $pin
+        )
+      );
+    }
+
+    while ($this->pins[$pin]->getValue() === PinInterface::VALUE_LOW && --$timeout > 0) {
+      time_nanosleep(0, 1);
+    }
+
+    return $timeout !== 0;
+  }
+
+  public function timeInHigh(int $pin, int $timeout): int {
+    $t0 = microtime(true);
+    if ($this->waitForRising($pin, $timeout) === 0) {
+      return 0;
+    }
+
+    if ($this->waitForFalling($pin, $timeout) === 0) {
+      return 0;
+    }
+
+    return (int)(microtime(true) - $t0);
+  }
+
+  public function timeInLow(int $pin, int $timeout): int {
+    $t0 = microtime(true);
+    if ($this->waitForFalling($pin, $timeout) === 0) {
+      return 0;
+    }
+
+    if ($this->waitForRising($pin, $timeout) === 0) {
+      return 0;
+    }
+
+    return (int)(microtime(true) - $t0);
   }
 }
