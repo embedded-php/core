@@ -22,10 +22,10 @@ final class PhpUartExt implements ProtocolInterface {
   protected Serial $serial;
 
   public function __construct(string $device, int $baudRate) {
-    if (! extension_loaded('phpuart')) {
+    if (! extension_loaded('uart')) {
       throw new RuntimeException(
         sprintf(
-          'The "phpuart" extension must be loaded to use %s',
+          'The "uart" extension must be loaded to use %s',
           __CLASS__
         )
       );

@@ -63,10 +63,10 @@ final class PhpSpiExt extends BitBang {
     int $resetHoldTime = 500000,
     int $resetReleaseTime = 1000000
   ) {
-    if (! extension_loaded('phpspi')) {
+    if (! extension_loaded('spi')) {
       throw new RuntimeException(
         sprintf(
-          'The "phpspi" extension must be loaded to use %s',
+          'The "spi" extension must be loaded to use %s',
           __CLASS__
         )
       );

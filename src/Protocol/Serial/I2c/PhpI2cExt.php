@@ -22,10 +22,10 @@ final class PhpI2cExt implements ProtocolInterface {
   protected Bus $bus;
 
   public function __construct(int $busId, int $deviceAddress) {
-    if (! extension_loaded('phpi2c')) {
+    if (! extension_loaded('i2c')) {
       throw new RuntimeException(
         sprintf(
-          'The "phpi2c" extension must be loaded to use %s',
+          'The "i2c" extension must be loaded to use %s',
           __CLASS__
         )
       );

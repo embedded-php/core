@@ -84,10 +84,10 @@ final class PhpGpioExt implements GpioInterface {
   }
 
   public function __construct(string $device, $pinType = self::PIN_PHYS) {
-    if (! extension_loaded('phpgpio')) {
+    if (! extension_loaded('gpio')) {
       throw new RuntimeException(
         sprintf(
-          'The "phpgpio" extension must be loaded to use %s',
+          'The "gpio" extension must be loaded to use %s',
           __CLASS__
         )
       );
