@@ -1,6 +1,7 @@
 .env
 /vendor/
 composer.phar
+composer.lock
 infection.json
 infection.log
 phpunit.xml
