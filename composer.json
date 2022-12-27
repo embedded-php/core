@@ -48,7 +48,7 @@
     "psy/psysh": "^0.11",
     "roave/security-advisories": "dev-latest",
     "squizlabs/php_codesniffer": "^3.6",
-    "vimeo/psalm": "^4.8"
+    "vimeo/psalm": "^4.8 || ^5.0"
   },
   "scripts": {
     "console": "vendor/bin/psysh",
